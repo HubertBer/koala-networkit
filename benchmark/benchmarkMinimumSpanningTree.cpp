@@ -23,7 +23,7 @@ NetworKit::edgeweight run_algorithm(NetworKit::Graph &G) {
 template<>
 NetworKit::edgeweight run_algorithm<Koala::ChazelleRubinfeldTrevisanMinimumSpanningTree>(NetworKit::Graph &G) {
     auto algorithm = Koala::ChazelleRubinfeldTrevisanMinimumSpanningTree(G);
-    float eps = 0.01;
+    float eps = 0.45;
 
     int max_w = 0;
     G.forEdges([&max_w](NetworKit::node, NetworKit::node, NetworKit::edgeweight ew, NetworKit::edgeid) {
@@ -37,7 +37,7 @@ NetworKit::edgeweight run_algorithm<Koala::ChazelleRubinfeldTrevisanMinimumSpann
 
 std::map<std::string, int> ALGORITHM = {
     { "exact", 0 },
-    { "Kruskal", 1 }, { "Prim", 2 }, { "Boruvka", 3 }, { "KKT", 4 }, { "CRT", 5 }
+    { "Kruskal", 1 }, { "Prim", 2 }, { "Boruvka", 3 }, { "KKT", 4 }, { "CRT", 5 }, { "Partition", 6 }
 };
 
 void run_g6_tests(const std::string &path, const std::string &algorithm) {
@@ -80,6 +80,9 @@ void run_g6_tests(const std::string &path, const std::string &algorithm) {
         case 5:
             run_algorithm<Koala::ChazelleRubinfeldTrevisanMinimumSpanningTree>(G);
             break;
+        case 6:
+            run_algorithm<Koala::PartitionMinimumSpanningTree>(G);
+            break;
         }
         std::cout << std::endl;
     }
@@ -88,19 +91,33 @@ void run_g6_tests(const std::string &path, const std::string &algorithm) {
 void run_dimacs_tests(const std::string &path, const std::string &algorithm) {
     auto G_directed = Koala::DimacsGraphReader().read(path);
     auto G = NetworKit::Graph(G_directed.numberOfNodes(), true, false);
+    int max_edge = 0;
     G_directed.forEdges([&](NetworKit::node u, NetworKit::node v, NetworKit::edgeweight w) {
         if (!G.hasEdge(u, v) && !G.hasEdge(v, u) && w > 0) {
             G.addEdge(u, v, w);
         }
+        max_edge = std::max(max_edge, (int) w);
     });
-    std::cout << path << " " << std::flush;
+    std::cout << "MAX EDGE " << max_edge << std::endl;
+    std::cout << path << " " << std::endl;
     std::set<NetworKit::edgeweight> T;
-    T.insert(run_algorithm<Koala::KruskalMinimumSpanningTree>(G));
-    T.insert(run_algorithm<Koala::PrimMinimumSpanningTree>(G));
-    T.insert(run_algorithm<Koala::BoruvkaMinimumSpanningTree>(G));
+    // std::cout << "Kruskal" << std::endl;
+    // T.insert(run_algorithm<Koala::KruskalMinimumSpanningTree>(G));
+    // std::cout << "Prim" << std::endl;
+    // T.insert(run_algorithm<Koala::PrimMinimumSpanningTree>(G));
+    // std::cout << "Boruvka" << std::endl;
+    // T.insert(run_algorithm<Koala::BoruvkaMinimumSpanningTree>(G));
+    // for (int i = 0; i < 5; i++) {
+    //     std::cout << "KKT" << std::endl;
+    //     T.insert(run_algorithm<Koala::KargerKleinTarjanMinimumSpanningTree>(G));
+    // }
     for (int i = 0; i < 5; i++) {
-        T.insert(run_algorithm<Koala::KargerKleinTarjanMinimumSpanningTree>(G));
+        std::cout << "Chazelle" << std::endl;
+        T.insert(run_algorithm<Koala::ChazelleRubinfeldTrevisanMinimumSpanningTree>(G));
     }
+    // std::cout << "Partition" << std::endl;
+    // T.insert(run_algorithm<Koala::PartitionMinimumSpanningTree>(G));
+    std::cout << "ALL DONE" << std::endl;
     assert(T.size() == 1);
     std::cout << std::endl;
     return;

@@ -17,6 +17,7 @@
 #include <limits>
 #include <map>
 #include <vector>
+#include <tuple>
 
 #include <networkit/auxiliary/Parallel.hpp>
 #include <networkit/components/ConnectedComponents.hpp>
@@ -573,6 +574,77 @@ const NetworKit::Graph& ChazelleRubinfeldTrevisanMinimumSpanningTree::getForest(
 
 float ChazelleRubinfeldTrevisanMinimumSpanningTree::getTreeWeight() const {
     return treeWeight;
+}
+
+void PartitionMinimumSpanningTree::run(){
+    hasRun = true;
+    NetworKit::Graph G(*graph);
+    
+    std::vector<std::tuple<NetworKit::node, NetworKit::node, NetworKit::edgeweight, NetworKit::edgeid>> edges;
+    edges.reserve(graph->numberOfEdges());
+    graph->forEdges([&edges](NetworKit::node v, NetworKit::node w, NetworKit::edgeweight ew, NetworKit::edgeid eid){
+        auto [v1, w1] = std::minmax(v, w);
+        edges.push_back({v1, w1, ew, eid});
+    });
+
+    NetworKit::UnionFind fu(graph->upperNodeIdBound());
+
+    recurse_rand(fu, std::move(edges), *tree);
+}
+
+void PartitionMinimumSpanningTree::recurse_rand(NetworKit::UnionFind& fu, std::vector<std::tuple<NetworKit::node, NetworKit::node, NetworKit::edgeweight, NetworKit::edgeid>> edges, NetworKit::Graph &f) {
+    if(edges.size() == 0){
+        return;
+    }
+    if (std::max_element(edges.begin(), edges.end(), [](const auto& a, const auto& b){return std::max(std::get<2>(a), std::get<2>(b));})
+        == std::min_element(edges.begin(), edges.end(), [](const auto& a, const auto& b){return std::min(std::get<2>(a), std::get<2>(b));})) {
+        
+        for(auto [v, w, ew, eid] : edges){
+            if(fu.find(v) == fu.find(w)){
+                continue;
+            }
+            fu.merge(v, w);
+            f.addEdge(v, w, ew);
+        }
+
+        return;
+    }
+
+    std::uniform_int_distribution<int> distrib(0, edges.size() - 1);
+    auto p_val = std::get<2>(*(edges.begin() + distrib(generator)));
+    auto mid = std::partition(edges.begin(), edges.end(), [p_val](const auto& a){
+        return std::get<2>(a) < p_val;
+    });
+    recurse_rand(fu, std::vector(edges.begin(), mid), f);
+
+    std::vector<std::tuple<NetworKit::node, NetworKit::node, NetworKit::edgeweight, NetworKit::edgeid>> new_edges;
+    std::map<std::pair<NetworKit::node, NetworKit::node>, std::pair<NetworKit::edgeweight, NetworKit::edgeid>> used_edges;
+    
+    std::for_each(mid, edges.end(), [&new_edges, &fu, &used_edges](auto e){
+        auto[v, w, ew, eid] = e;
+        auto fv = fu.find(v); 
+        auto fw = fu.find(w);
+        if (fv == fw){
+            return;
+        }
+        if (!used_edges.contains({fv, fw}) || used_edges[{fv, fw}] > std::pair{ew, eid}){
+            used_edges[{fv, fw}] = std::pair{ew, eid};
+        }
+    });
+
+    std::for_each(mid, edges.end(), [&new_edges, &fu, &used_edges](auto e){
+        auto[v, w, ew, eid] = e;
+        auto fv = fu.find(v); 
+        auto fw = fu.find(w);
+        if (fv == fw){
+            return;
+        }
+        if (used_edges[{fv, fw}] == std::pair{ew, eid}){
+            new_edges.push_back(e);
+        }
+    });
+
+    recurse_rand(fu, new_edges, f);
 }
 
 void MinimumSpanningTree::check() const {

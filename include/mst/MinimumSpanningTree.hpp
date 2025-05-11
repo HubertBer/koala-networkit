@@ -151,6 +151,14 @@ private:
    float calculateApproximateCCsCount(float eps, int bfs_bound, unsigned int w, unsigned int w_bound) const; 
    float calculateApproximateTreeWeight(float eps, unsigned int w) const;
    float treeWeight = -1;
-}; 
+};
+
+class PartitionMinimumSpanningTree final : public MinimumSpanningTree{
+public:
+   using MinimumSpanningTree::MinimumSpanningTree;
+   void run();
+private:
+   void recurse_rand(NetworKit::UnionFind& fu, std::vector<std::tuple<NetworKit::node, NetworKit::node, NetworKit::edgeweight, NetworKit::edgeid>> edges, NetworKit::Graph &f);
+};
 
 }  /* namespace Koala */
